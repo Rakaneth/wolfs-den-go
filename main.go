@@ -7,6 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten"
 )
 
+//Console dimensions
 const (
 	ROOTW  = 100
 	ROOT_H = 40
