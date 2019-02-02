@@ -62,3 +62,13 @@ func (m *GameMap) Tile(x, y int) Tile {
 func (m *GameMap) ChangeTile(x, y int, t Tile) {
 	m.tiles[y][x] = t
 }
+
+//Explore sets the tile at x, y as explored
+func (m *GameMap) Explore(x, y int) {
+	m.explored[y][x] = true
+}
+
+//Explored returns true if x, y has been explored
+func (m *GameMap) Explored(x, y int) bool {
+	return m.explored[y][x]
+}
