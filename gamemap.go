@@ -1,5 +1,9 @@
 package main
 
+import (
+	"math/rand"
+)
+
 //Tile is an enum representing raw map data
 type Tile int
 
@@ -19,6 +23,7 @@ const (
 	DownStairs
 )
 
+//TileInfo types and information
 var TileInfo = map[Tile]tileData{
 	NullTile:   tileData{false, false, 0},
 	Floor:      tileData{true, true, ' '},
@@ -32,13 +37,14 @@ var TileInfo = map[Tile]tileData{
 //GameMap describes a game map
 type GameMap struct {
 	tiles         [][]Tile
-	name          string
+	Name          string
 	explored      [][]bool
 	Width, Height int
+	Lit           bool
 }
 
 //NewGameMap creates a new GameMap
-func NewGameMap(width, height int, name string) *GameMap {
+func NewGameMap(width, height int, name string, lit bool) *GameMap {
 	tiles := make([][]Tile, height)
 	for i := 0; i < height; i++ {
 		tiles[i] = make([]Tile, width)
@@ -49,7 +55,7 @@ func NewGameMap(width, height int, name string) *GameMap {
 		explored[j] = make([]bool, width)
 	}
 
-	return &GameMap{tiles, name, explored, width, height}
+	return &GameMap{tiles, name, explored, width, height, lit}
 }
 
 func (m *GameMap) maxX() int {
@@ -78,14 +84,17 @@ func (m *GameMap) tileInfo(pt Point) tileData {
 	return TileInfo[t]
 }
 
+//Walkable returns true if a tile can be walked through
 func (m *GameMap) Walkable(pt Point) bool {
 	return m.tileInfo(pt).walk
 }
 
+//Transparent returns true if a tile can be seen through
 func (m *GameMap) Transparent(pt Point) bool {
 	return m.tileInfo(pt).see
 }
 
+//Glyph returns the rune that should be displayed for a specific tile
 func (m *GameMap) Glyph(pt Point) rune {
 	return m.tileInfo(pt).glyph
 }
@@ -105,6 +114,16 @@ func (m *GameMap) Explored(pt Point) bool {
 	return m.explored[pt.y][pt.x]
 }
 
+//Cam returns a Point used as a scrolling anchor
+func (m *GameMap) Cam(pt Point) Point {
+	calc := func(p int, s int, md int) int {
+		return clamp(p-s/2, 0, max(0, md-s))
+	}
+	left := calc(pt.x, MAP_W, m.Width)
+	top := calc(pt.y, MAP_H, m.Height)
+	return NewPoint(left, top)
+}
+
 func (m *GameMap) neighbors(pt Point, skipWall bool) (result PointList) {
 	startX := max(0, pt.x-1)
 	startY := min(m.maxX(), pt.x+1)
@@ -120,5 +139,48 @@ func (m *GameMap) neighbors(pt Point, skipWall bool) (result PointList) {
 			}
 		}
 	}
+	return
+}
+
+func (m *GameMap) withAllCells(calbak func(int, int)) {
+	for y := 0; y < m.Height; y++ {
+		for x := 0; x < m.Width; x++ {
+			calbak(x, y)
+		}
+	}
+}
+
+func (m *GameMap) allWalls() {
+	m.withAllCells(func(x, y int) {
+		m.ChangeTile(Point{x, y}, Wall)
+	})
+}
+
+func (m *GameMap) randomize(chance float64) {
+	m.withAllCells(func(x, y int) {
+		p := Point{x, y}
+		if roll := rand.Float64(); roll < chance {
+			m.ChangeTile(p, Wall)
+		} else {
+			m.ChangeTile(p, Floor)
+		}
+	})
+}
+
+//RandomFloor chooses a random floor square
+func (m *GameMap) RandomFloor() (p Point) {
+	var x, y int
+	for tries := 100; tries > 0 && (!m.Walkable(p) || p == ZeroPoint); tries-- {
+		x = rand.Intn(m.Width)
+		y = rand.Intn(m.Height)
+		p = NewPoint(x, y)
+	}
+	return
+}
+
+//NewRandomMap creates a new map with random walls
+func NewRandomMap(width, height int, lit bool, name string) (result *GameMap) {
+	result = NewGameMap(width, height, name, lit)
+	result.randomize(0.5)
 	return
 }

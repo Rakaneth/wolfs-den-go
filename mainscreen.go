@@ -2,17 +2,21 @@ package main
 
 import (
 	"github.com/BigJk/ramen/console"
+	"github.com/BigJk/ramen/t"
 )
 
 //PlayScreen represents the main play area
 type PlayScreen struct {
-	root    *console.Console
-	gameMap *console.Console
-	stats   *console.Console
-	info    *console.Console
-	msgs    *console.Console
-	skls    *console.Console
-	msgList []string
+	DefaultScene
+	root      *console.Console
+	gameMap   *console.Console
+	stats     *console.Console
+	info      *console.Console
+	msgs      *console.Console
+	skls      *console.Console
+	msgList   []string
+	world     *World
+	gameStart bool
 }
 
 //NewPlayScreen creates a PlayScreen
@@ -27,7 +31,18 @@ func NewPlayScreen(root *console.Console) *PlayScreen {
 	checkErr(err)
 	skls, err := root.CreateSubConsole(SKIL_X, SKIL_Y, SKIL_W, SKIL_H)
 	checkErr(err)
-	return &PlayScreen{root, gameMap, stats, info, msgs, skls, make([]string, 0)}
+	return &PlayScreen{
+		DefaultScene{"play"},
+		root,
+		gameMap,
+		stats,
+		info,
+		msgs,
+		skls,
+		make([]string, 0),
+		NewWorld(),
+		true,
+	}
 }
 
 //Name returns the name of the PlayScreen
@@ -38,11 +53,20 @@ func (p *PlayScreen) Name() string {
 //Render draws the PlayScreen
 func (p *PlayScreen) Render() {
 	p.displayMessages()
+	p.drawMap(p.world.CurMap, NewPoint(0, 0))
 	Border(p.stats, "Stats")
 	Border(p.info, "Info")
-	Border(p.msgs, "Messages")
 	Border(p.skls, "Skills")
 
+}
+
+//Enter starts a new game
+func (p *PlayScreen) Enter() {
+	if p.gameStart {
+		p.world.AddMap(NewRandomMap(100, 100, true, "Mines"))
+		p.world.SetMap("Mines")
+	}
+	p.DefaultScene.Enter()
 }
 
 //AddMessage adds a message to the PlayScreen
@@ -52,6 +76,7 @@ func (p *PlayScreen) AddMessage(msg string) {
 
 func (p *PlayScreen) displayMessages() {
 	p.msgs.ClearAll()
+	Border(p.msgs, "Messages")
 	counter := 1
 	for i := len(p.msgList) - 1; i >= 0; i-- {
 		h := p.msgs.CalcTextHeight(p.msgs.Width-2, 0, p.msgList[i])
@@ -60,6 +85,25 @@ func (p *PlayScreen) displayMessages() {
 		} else {
 			break
 		}
+	}
+}
+
+func (p *PlayScreen) drawMap(m *GameMap, center Point) {
+	p.gameMap.ClearAll()
+	c := m.Cam(center)
+	if m.Lit {
+		for x := c.x; x < c.x+MAP_W; x++ {
+			for y := c.y; y < c.y+MAP_H; y++ {
+				sp := Point{x, y}
+				wp := sp.Translate(c)
+				tl := m.Tile(c)
+				if tl != NullTile {
+					p.gameMap.Transform(x, y, t.CharRune(m.Glyph(wp)))
+				}
+			}
+		}
+		cp := center.Translate(Point{-c.x, -c.y})
+		p.gameMap.Transform(cp.x, cp.y, t.Char('X'))
 	}
 }
 

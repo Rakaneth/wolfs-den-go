@@ -41,7 +41,6 @@ const (
 
 func main() {
 	font, err := font.New("../github.com/BigJk/ramen/fonts/terminus-11x11.png", 11, 11)
-	var tt, longC float64
 	if err != nil {
 		panic(err)
 	}
@@ -49,32 +48,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	playScreen := NewPlayScreen(con)
-	tock := false
+
+	sm := NewSceneManager()
+
+	sm.AddScene(NewPlayScreen(con))
+	sm.SetScene("play")
 	con.SetTickHook(func(timeElapsed float64) error {
-		tt += timeElapsed
-		longC += timeElapsed
-		if tt > 1.0 {
-			var toAdd string
-			tt -= 1.0
-			if tock {
-				toAdd = "tock"
-			} else {
-				toAdd = "tick"
-			}
-			playScreen.AddMessage(toAdd)
-			tock = !tock
-		}
-		if longC > 10.0 {
-			playScreen.AddMessage("This is a really long string that is only added every ten seconds to make sure that the messages are working.")
-			longC -= 10.0
-		}
 		return nil
 	})
 
 	con.SetPreRenderHook(func(screen *ebiten.Image, timeDelta float64) error {
 		con.ClearAll()
-		playScreen.Render()
+		sm.CurScene.Render()
 		return nil
 	})
 
